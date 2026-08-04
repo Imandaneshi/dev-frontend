@@ -27,7 +27,7 @@
       </v-tab>
     </v-tabs>
     <v-data-table
-      :headers="headers"
+      :headers="tableHeaders"
       :items="displayedItems"
       :loading="isLoading"
       loading-text="Loading... Please wait"
@@ -48,6 +48,17 @@
     >
       <template #top>
         <v-toolbar flat>
+          <v-select
+            v-if="currentTab.key === 'services'"
+            v-model="selectedService"
+            :items="serviceOptions"
+            label="Service"
+            clearable
+            dense
+            outlined
+            hide-details
+            class="service-filter mr-4"
+          />
           <v-spacer />
           <div class="text-center d-flex align-center justify-space-around">
             <v-tooltip bottom color="grey darken-1" content-class="py-1">
@@ -87,7 +98,7 @@
             <v-tooltip bottom color="grey darken-1" content-class="py-1">
               <template v-slot:activator="{ on, attrs }">
                 <v-btn
-                  v-if="currentTab.key === 'errors'"
+                  v-if="canGenerateCurrentTab"
                   color="indigo"
                   small
                   dark
@@ -220,6 +231,17 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
       }
     },
     {
+      key: 'services',
+      label: 'Service logs',
+      endpoints: {
+        list: '/error-log/services/',
+        removePrefix: '/error-log/services/remove/',
+        removeAll: '/error-log/services/remove-all/',
+        createTicketPrefix: '/error-log/services/create-jira-ticket/',
+        generate: '/dev/create-service-test-logs/'
+      }
+    },
+    {
       key: 'warnings',
       label: 'Warnings',
       endpoints: {
@@ -245,12 +267,14 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
 
   itemsByTab:any = {
     errors: [],
+    services: [],
     warnings: [],
     missingTranslations: []
   }
 
   countersByTab:any = {
     errors: 0,
+    services: 0,
     warnings: 0,
     missingTranslations: 0
   }
@@ -260,13 +284,45 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   logsTab:number = 0
   tab:number = 0
   isLoading:boolean = false
+  selectedService:string|null = null
 
   get currentTab () {
     return this.tabs[this.logsTab] || this.tabs[0]
   }
 
   get displayedItems () {
-    return this.itemsByTab[this.currentTab.key] || []
+    const items = this.itemsByTab[this.currentTab.key] || []
+    if (this.currentTab.key === 'services' && this.selectedService) {
+      return items.filter((item:any) => item.Service === this.selectedService)
+    }
+
+    return items
+  }
+
+  get tableHeaders () {
+    if (this.currentTab.key !== 'services') {
+      return this.headers
+    }
+
+    return [
+      ...this.headers.slice(0, 3),
+      { text: 'Service', value: 'Service', width: '150px' },
+      ...this.headers.slice(3)
+    ]
+  }
+
+  get serviceOptions () {
+    const services = (this.itemsByTab.services || [])
+      .map((item:any) => item.Service)
+      .filter((service:string) => !!service)
+
+    return services
+      .filter((service:string, index:number) => services.indexOf(service) === index)
+      .sort()
+  }
+
+  get canGenerateCurrentTab () {
+    return this.currentTab.key === 'errors' || this.currentTab.key === 'services'
   }
 
   getTabItemsCount (tabKey:string) {
@@ -276,6 +332,7 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   getTabItemsColor (tabKey:string) {
     const colors:any = {
       errors: 'red',
+      services: 'teal',
       warnings: 'blue',
       missingTranslations: 'purple'
     }
@@ -285,6 +342,7 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   getTabItemsBorderColor (tabKey:string) {
     const colors:any = {
       errors: '#f44336',
+      services: '#009688',
       warnings: '#2196f3',
       missingTranslations: '#9c27b0'
     }
@@ -294,6 +352,7 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   getCurrentTabItemLabel () {
     const labels:any = {
       errors: 'error',
+      services: 'service log',
       warnings: 'warning',
       missingTranslations: 'missing translation'
     }
@@ -318,6 +377,7 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
         const counters = resp.data || {}
         this.countersByTab = {
           errors: counters.errors || 0,
+          services: counters.services || 0,
           warnings: counters.warnings || 0,
           missingTranslations: counters.missingTranslations || 0
         }
@@ -380,6 +440,7 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   onTabChange () {
     this.expanded = []
     this.tab = 0
+    this.selectedService = null
     this.fetchCurrentList()
   }
 
@@ -500,6 +561,10 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
     color: #f44336 !important;
   }
 
+  .v-tab.error-log-tab--active.error-log-tab--services {
+    color: #009688 !important;
+  }
+
   .v-tab.error-log-tab--active.error-log-tab--warnings {
     color: #2196f3 !important;
   }
@@ -507,6 +572,10 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   .v-tab.error-log-tab--active.error-log-tab--missingTranslations {
     color: #9c27b0 !important;
   }
+}
+
+.service-filter {
+  max-width: 280px;
 }
 
 .v-data-table::v-deep {
