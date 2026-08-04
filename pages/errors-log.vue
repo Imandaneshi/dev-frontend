@@ -178,29 +178,55 @@
             </div>
 
             <div class="mobile-log-section mb-4">
-              <div class="d-flex align-center justify-space-between mb-2">
-                <strong>Log</strong>
-                <v-btn small text color="primary" @click="copyLog(item)">
+              <div class="d-flex align-center justify-space-between mobile-log-section__header">
+                <v-btn
+                  small
+                  text
+                  class="text-none mobile-log-section__toggle"
+                  :aria-expanded="isMobileSectionExpanded(item, 'log')"
+                  @click="toggleMobileSection(item, 'log')"
+                >
+                  <v-icon left small>
+                    {{ isMobileSectionExpanded(item, 'log') ? icons.mdiChevronUp : icons.mdiChevronDown }}
+                  </v-icon>
+                  <strong>Log</strong>
+                </v-btn>
+                <v-btn small text color="primary" @click.stop="copyLog(item)">
                   <v-icon left small>
                     {{ icons.mdiContentCopy }}
                   </v-icon>
                   Copy log
                 </v-btn>
               </div>
-              <pre class="mobile-log-content">{{ item.Stack || 'No log captured.' }}</pre>
+              <v-expand-transition>
+                <pre v-show="isMobileSectionExpanded(item, 'log')" class="mobile-log-content">{{ item.Stack || 'No log captured.' }}</pre>
+              </v-expand-transition>
             </div>
 
             <div class="mobile-log-section">
-              <div class="d-flex align-center justify-space-between mb-2">
-                <strong>Request</strong>
-                <v-btn small text color="primary" :disabled="!item.Request" @click="copyRequest(item)">
+              <div class="d-flex align-center justify-space-between mobile-log-section__header">
+                <v-btn
+                  small
+                  text
+                  class="text-none mobile-log-section__toggle"
+                  :aria-expanded="isMobileSectionExpanded(item, 'request')"
+                  @click="toggleMobileSection(item, 'request')"
+                >
+                  <v-icon left small>
+                    {{ isMobileSectionExpanded(item, 'request') ? icons.mdiChevronUp : icons.mdiChevronDown }}
+                  </v-icon>
+                  <strong>Request</strong>
+                </v-btn>
+                <v-btn small text color="primary" :disabled="!item.Request" @click.stop="copyRequest(item)">
                   <v-icon left small>
                     {{ icons.mdiContentCopy }}
                   </v-icon>
                   Copy request
                 </v-btn>
               </div>
-              <pre class="mobile-log-content">{{ item.Request || 'No request captured.' }}</pre>
+              <v-expand-transition>
+                <pre v-show="isMobileSectionExpanded(item, 'request')" class="mobile-log-content">{{ item.Request || 'No request captured.' }}</pre>
+              </v-expand-transition>
             </div>
           </v-card-text>
           <v-divider />
@@ -395,6 +421,8 @@
 
 <script lang="ts">
 import {
+  mdiChevronDown,
+  mdiChevronUp,
   mdiContentCopy,
   mdiDelete,
   mdiDeleteAlertOutline,
@@ -418,6 +446,8 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   }
 
   icons = {
+    mdiChevronDown,
+    mdiChevronUp,
     mdiEyeOutline,
     mdiContentCopy,
     mdiDelete,
@@ -506,6 +536,7 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   mobileSortDescending:boolean = true
   mobilePage:number = 1
   mobileItemsPerPage:number = 10
+  mobileExpandedSections:any = {}
 
   get currentTab () {
     return this.tabs[this.logsTab] || this.tabs[0]
@@ -798,6 +829,7 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
     this.selectedService = null
     this.mobileSortBy = 'Time'
     this.mobileSortDescending = true
+    this.mobileExpandedSections = {}
     this.resetMobilePage()
     this.fetchCurrentList()
   }
@@ -809,6 +841,19 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   toggleMobileSortDirection () {
     this.mobileSortDescending = !this.mobileSortDescending
     this.resetMobilePage()
+  }
+
+  getMobileSectionKey (item:any, section:string) {
+    return `${this.currentTab.key}:${item.ID}:${section}`
+  }
+
+  isMobileSectionExpanded (item:any, section:string) {
+    return !!this.mobileExpandedSections[this.getMobileSectionKey(item, section)]
+  }
+
+  toggleMobileSection (item:any, section:string) {
+    const key = this.getMobileSectionKey(item, section)
+    this.$set(this.mobileExpandedSections, key, !this.mobileExpandedSections[key])
   }
 
   clearFilters () {
@@ -1050,6 +1095,16 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   background: #f7f7f7;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
+
+  &__header {
+    min-height: 36px;
+  }
+
+  &__toggle {
+    flex: 1;
+    justify-content: flex-start;
+    min-width: 0 !important;
+  }
 }
 
 .mobile-log-content {
@@ -1058,8 +1113,9 @@ export default class ErrorsLog extends mixins(ApiUtilities) {
   margin: 0;
   overflow: auto;
   color: #333;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: pre;
   background: #fff;
   border-radius: 4px;
 }
